@@ -43,25 +43,39 @@ export async function createUser(data: FormData) {
 
 export async function updateUser(id: string, data: FormData) {
   try {
+    const currentUser = await prisma.user.findUnique({
+      where: { id },
+    });
+
+    if (!currentUser) {
+      return { success: false, error: "User not found" };
+    }
+
     const parsedData = userSchema.parse({
       name: data.get("name"),
       email: data.get("email"),
     });
 
-    const existedUser = await prisma.user.findUnique({
-      where: {
-        email: parsedData.email,
-      },
-    });
+    // If email is unchanged, no need to check uniqueness
+    if (parsedData.email !== currentUser.email) {
+      const existingUserWithNewEmail = await prisma.user.findUnique({
+        where: {
+          email: parsedData.email,
+        },
+      });
 
-    if (existedUser) {
-      return { success: false, error: "Email already exists" };
+      // Check if the email belongs to another user
+      if (existingUserWithNewEmail && existingUserWithNewEmail.id !== id) {
+        return { success: false, error: "Email already exists" };
+      }
     }
 
+    // If only name is edited (email same as current), or both, proceed with update
     await prisma.user.update({
       where: { id },
       data: parsedData,
     });
+    
     revalidatePath("/users");
     return { success: true };
   } catch (error) {
@@ -116,17 +130,8 @@ export async function getUsers() {
 
 export async function getUserById(id: string) {
   try {
-    const existedUser = await prisma.user.findUnique({
-      where: {
-        id,
-      },
-    });
-
-    if (existedUser) {
-      return { success: false, error: "Please use correct data" };
-    }
-
-    return await prisma.user.findUnique({ where: { id } });
+    const userExist = await prisma.user.findUnique({ where: { id } });
+    return userExist;
   } catch (error) {
     throw new Error("Failed to fetch user");
   }

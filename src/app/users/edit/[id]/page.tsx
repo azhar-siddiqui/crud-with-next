@@ -6,13 +6,17 @@ import { redirect } from "next/navigation";
 export default async function EditUserPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
-  const id = params.id;
+  const { id } = await params;
   const user = await getUserById(id);
 
   if (!user) {
-    return <div className="container mx-auto p-4">User not found</div>;
+    return (
+      <div className="container mx-auto p-4 flex justify-center items-center min-h-screen">
+        User not found
+      </div>
+    );
   }
 
   const handleSubmit = async (data: { name: string; email: string }) => {
